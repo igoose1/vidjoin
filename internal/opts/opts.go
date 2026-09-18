@@ -26,7 +26,7 @@ func ParseSize(s string) (Size, error) {
 	if a, ok := sizeAliases[s]; ok {
 		return a, nil
 	}
-	parts := strings.FieldsFunc(s, func(r rune) bool { return r == 'x' || r == '*' || r == '×' })
+	parts := strings.FieldsFunc(s, func(r rune) bool { return r == 'x' || r == '*' })
 	if len(parts) != 2 {
 		return Size{}, fmt.Errorf("invalid size %q: use WIDTHxHEIGHT, e.g. 1920x1080, or 720p/1080p/1440p/4k", s)
 	}

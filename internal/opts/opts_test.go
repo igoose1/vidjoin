@@ -3,7 +3,7 @@ package opts
 import "testing"
 
 func TestParseSize(t *testing.T) {
-	for in, want := range map[string]Size{"1920x1080": {1920, 1080}, "1280X720": {1280, 720}, "4k": {3840, 2160}, "720p": {1280, 720}, "1080×1920": {1080, 1920}} {
+	for in, want := range map[string]Size{"1920x1080": {1920, 1080}, "1280X720": {1280, 720}, "4k": {3840, 2160}, "720p": {1280, 720}, "1080x1920": {1080, 1920}} {
 		if got, err := ParseSize(in); err != nil || got != want {
 			t.Errorf("ParseSize(%q) = %v, %v", in, got, err)
 		}

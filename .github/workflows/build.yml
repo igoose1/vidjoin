@@ -23,9 +23,11 @@ jobs:
           - os: ubuntu-latest
             platform: linux
             exe: vidjoin
+            gui: vidjoin-gui
           - os: windows-latest
             platform: windows
             exe: vidjoin.exe
+            gui: vidjoin-gui.exe
     runs-on: ${{ matrix.os }}
     defaults:
       run:
@@ -40,6 +42,22 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
+
+      - name: GUI build dependencies (Linux)
+        if: matrix.platform == 'linux'
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq gcc libgl1-mesa-dev xorg-dev libwayland-dev libxkbcommon-dev wayland-protocols
+
+      - name: C compiler (Windows)
+        if: matrix.platform == 'windows'
+        run: |
+          if ! command -v gcc >/dev/null 2>&1; then
+            choco install mingw -y --no-progress
+            for d in /c/ProgramData/mingw64/mingw64/bin /c/mingw64/bin; do
+              if [ -x "$d/gcc.exe" ]; then cygpath -w "$d" >> "$GITHUB_PATH"; break; fi
+            done
+          fi
 
       - name: Version
         id: ver
@@ -58,17 +76,26 @@ jobs:
       - name: Test (unit + end-to-end with the bundled ffmpeg)
         run: go test -v ./...
 
-      - name: Build
+      - name: Build CLI (static, no cgo)
         env:
           CGO_ENABLED: "0"
         run: go build -trimpath -ldflags "-s -w -X main.version=${{ steps.ver.outputs.version }}" -o "${{ matrix.exe }}" ./cmd/vidjoin
+
+      - name: Build GUI
+        env:
+          CGO_ENABLED: "1"
+        run: |
+          flags="-s -w -X main.version=${{ steps.ver.outputs.version }}"
+          # No console window on Windows.
+          if [ "${{ matrix.platform }}" = windows ]; then flags="$flags -H windowsgui"; fi
+          go build -trimpath -ldflags "$flags" -o "${{ matrix.gui }}" ./cmd/vidjoin-gui
 
       - name: Package
         id: pkg
         run: |
           name="vidjoin-${{ steps.ver.outputs.version }}-${{ matrix.platform }}-amd64"
           mkdir -p "dist/$name"
-          cp "${{ matrix.exe }}" README.md "dist/$name/"
+          cp "${{ matrix.exe }}" "${{ matrix.gui }}" README.md "dist/$name/"
           cp ffmpeg-bin/* "dist/$name/"
           cd dist
           if [ "${{ matrix.platform }}" = windows ]; then

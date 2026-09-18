@@ -108,7 +108,7 @@ func AutoFPS(media []*ff.Media) opts.FPS {
 	return best
 }
 
-// Fit returns the size of a w×h picture scaled to fit inside the frame,
+// Fit returns the size of a w by h picture scaled to fit inside the frame,
 // keeping its aspect ratio (enlarging small pictures), with even dimensions.
 func Fit(w, h int, frame opts.Size) (int, int) {
 	s := math.Min(float64(frame.W)/float64(w), float64(frame.H)/float64(h))

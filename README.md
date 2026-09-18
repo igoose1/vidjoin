@@ -9,6 +9,33 @@ A single download for Linux or Windows: vidjoin plus its own copy of
 ffmpeg. Nothing else needs installing. A hardware encoder (NVIDIA, Intel,
 AMD) is used automatically when the machine has one.
 
+## GUI
+
+`vidjoin-gui` (in the same download) does the same with a window:
+
+- Add videos with **Add folder...** or **Add file...**, or drag files and
+  folders onto the window. On Windows you can also drop them onto
+  `vidjoin-gui.exe` itself.
+- Reorder with the Up and Down buttons, remove with the bin button. **Sort by name**
+  restores file name order.
+- Pick size, frame rate, background color and preset (remembered between
+  runs), choose the output file and press **Join**.
+- **Load list...** and **Save list...** read and write the same `order.txt`
+  files as the command line.
+- Quit with Ctrl+Q or File > Quit. If a join is running, vidjoin asks
+  first, then stops ffmpeg and removes its temporary files.
+
+**Your order is remembered.** When all clips come from one folder and you
+reorder or remove any, vidjoin saves that order. The next time you open
+the folder, the videos come back in the same order and the removed ones
+stay out. Videos added to the folder since then go at the end. Saved
+orders live in `vidjoin/orders` in your user configuration folder
+(`%AppData%` on Windows, `~/.config` on Linux).
+
+On Linux the GUI needs the usual desktop libraries (OpenGL, X11 or
+Wayland), which every desktop installation has. The command-line
+`vidjoin` has no such requirements.
+
 ## Usage
 
 ```
@@ -73,8 +100,9 @@ plays everywhere.
    (Windows) or VA-API (Linux) by encoding a few test frames at the output
    size, and falls back to x264 if none works.
 3. **Normalize** every clip, several in parallel, to an intermediate file with
-   identical parameters: `scale` (fit, both directions) → `pad` (center on
-   the background) → `fps` (constant frame rate) → exact frame count.
+   identical parameters: `scale` fits the picture (up or down), then `pad`
+   centers it on the background, then `fps` makes the frame rate constant,
+   and finally the clip is cut to an exact number of frames.
    The audio is resampled to 48 kHz stereo and cut or padded to exactly
    the same length as the video. Clips without audio get silence.
 4. **Join** the intermediates with ffmpeg's concat demuxer. The video is
@@ -140,6 +168,16 @@ CGO_ENABLED=0 go build -trimpath -ldflags "-s -w" -o vidjoin ./cmd/vidjoin
 GOOS=windows CGO_ENABLED=0 go build -trimpath -ldflags "-s -w" -o vidjoin.exe ./cmd/vidjoin
 ```
 
+The GUI uses [Fyne](https://fyne.io) and needs cgo: a C compiler, and on
+Linux the OpenGL and window-system headers:
+
+```
+sudo apt-get install gcc libgl1-mesa-dev xorg-dev libwayland-dev libxkbcommon-dev wayland-protocols
+go build -trimpath -ldflags "-s -w" -o vidjoin-gui ./cmd/vidjoin-gui
+# Windows (with MinGW-w64 gcc on PATH):
+go build -trimpath -ldflags "-s -w -H windowsgui" -o vidjoin-gui.exe ./cmd/vidjoin-gui
+```
+
 To get ffmpeg and ffprobe, put them next to the executable:
 
 ```
@@ -155,7 +193,7 @@ Tests: `go test ./...`. The end-to-end test runs only when ffmpeg is found.
 
 `.github/workflows/build.yml` builds, tests and packages for Ubuntu
 (`.tar.gz`) and Windows (`.zip`) on every push. Each package contains vidjoin,
-ffmpeg, ffprobe and the ffmpeg license. Pushing a tag like `v1.0.0` publishes
+vidjoin-gui, ffmpeg, ffprobe and the ffmpeg license. Pushing a tag like `v1.0.0` publishes
 both packages as a GitHub release. The ffmpeg build can be chosen when
 running the workflow manually (default: `ffmpeg-master-latest`; pin a release
 line such as `ffmpeg-n8.0-latest` for more predictability).
