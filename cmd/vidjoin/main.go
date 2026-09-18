@@ -14,10 +14,10 @@ import (
 	"sync"
 	"time"
 
-	"vidjoin/internal/ff"
-	"vidjoin/internal/join"
-	"vidjoin/internal/opts"
-	"vidjoin/internal/order"
+	"github.com/igoose1/vidjoin/internal/ff"
+	"github.com/igoose1/vidjoin/internal/join"
+	"github.com/igoose1/vidjoin/internal/opts"
+	"github.com/igoose1/vidjoin/internal/order"
 )
 
 var version = "dev"

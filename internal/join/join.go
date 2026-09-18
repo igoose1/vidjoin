@@ -21,8 +21,8 @@ import (
 	"strings"
 	"sync"
 
-	"vidjoin/internal/ff"
-	"vidjoin/internal/opts"
+	"github.com/igoose1/vidjoin/internal/ff"
+	"github.com/igoose1/vidjoin/internal/opts"
 )
 
 const sampleRate = 48000

@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	"vidjoin/internal/opts"
+	"github.com/igoose1/vidjoin/internal/opts"
 )
 
 // Encoder is an H.264 encoder together with the ffmpeg arguments it needs.
