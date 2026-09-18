@@ -167,3 +167,8 @@ The bundled ffmpeg comes from
 needed for x264) and is licensed under the GPL. Its license is included as
 `LICENSE-ffmpeg.txt`, and the corresponding source is available from that
 project. vidjoin runs ffmpeg as a separate program and does not link to it.
+
+## Project license
+
+This is an LLM slop so I publish the code as a CC0 1.0. See LICENSE.txt. Note
+that bundled ffmpeg comes with a different license.
