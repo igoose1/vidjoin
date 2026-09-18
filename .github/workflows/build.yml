@@ -1,0 +1,113 @@
+name: build
+
+on:
+  push:
+    branches: [main, master]
+    tags: ["v*"]
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      ffmpeg_build:
+        description: "BtbN ffmpeg build (e.g. ffmpeg-master-latest, ffmpeg-n8.0-latest)"
+        default: ffmpeg-master-latest
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            platform: linux
+            exe: vidjoin
+          - os: windows-latest
+            platform: windows
+            exe: vidjoin.exe
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash
+    env:
+      FFMPEG_BUILD: ${{ inputs.ffmpeg_build || 'ffmpeg-master-latest' }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # for git describe
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: Version
+        id: ver
+        run: echo "version=$(git describe --tags --always --dirty 2>/dev/null || echo dev)" >> "$GITHUB_OUTPUT"
+
+      - name: Fetch static ffmpeg
+        run: |
+          scripts/fetch-ffmpeg.sh ${{ matrix.platform }} ffmpeg-bin
+          dir="$PWD/ffmpeg-bin"
+          if [ "${{ matrix.platform }}" = windows ]; then dir=$(cygpath -w "$dir"); fi
+          echo "$dir" >> "$GITHUB_PATH"
+
+      - name: Vet
+        run: go vet ./...
+
+      - name: Test (unit + end-to-end with the bundled ffmpeg)
+        run: go test -v ./...
+
+      - name: Build
+        env:
+          CGO_ENABLED: "0"
+        run: go build -trimpath -ldflags "-s -w -X main.version=${{ steps.ver.outputs.version }}" -o "${{ matrix.exe }}" ./cmd/vidjoin
+
+      - name: Package
+        id: pkg
+        run: |
+          name="vidjoin-${{ steps.ver.outputs.version }}-${{ matrix.platform }}-amd64"
+          mkdir -p "dist/$name"
+          cp "${{ matrix.exe }}" README.md "dist/$name/"
+          cp ffmpeg-bin/* "dist/$name/"
+          cd dist
+          if [ "${{ matrix.platform }}" = windows ]; then
+            7z a -tzip -mx=9 "$name.zip" "$name" >/dev/null
+            echo "file=dist/$name.zip" >> "$GITHUB_OUTPUT"
+          else
+            tar -czf "$name.tar.gz" "$name"
+            echo "file=dist/$name.tar.gz" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Smoke test the packaged binary
+        run: |
+          dir="dist/vidjoin-${{ steps.ver.outputs.version }}-${{ matrix.platform }}-amd64"
+          "$dir/${{ matrix.exe }}" version
+          mkdir -p smoke
+          "$dir/ffmpeg" -hide_banner -loglevel error -y -f lavfi -i testsrc2=s=1280x720:r=30 -f lavfi -i sine=f=440 -t 2 -pix_fmt yuv420p "smoke/a 视频.mp4"
+          "$dir/ffmpeg" -hide_banner -loglevel error -y -f lavfi -i testsrc2=s=480x640:r=25 -t 2 -pix_fmt yuv420p smoke/b.mp4
+          "$dir/${{ matrix.exe }}" order smoke
+          "$dir/${{ matrix.exe }}" join --list smoke/order.txt -o smoke-out.mp4 --size 1280x720 --preset fast
+          "$dir/ffprobe" -v error -show_entries stream=codec_type,width,height,duration -of compact smoke-out.mp4
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: vidjoin-${{ matrix.platform }}
+          path: ${{ steps.pkg.outputs.file }}
+          compression-level: 0 # already compressed
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "$GITHUB_REF_NAME" dist/* --repo "$GITHUB_REPOSITORY" --title "$GITHUB_REF_NAME" --generate-notes
